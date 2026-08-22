@@ -27,10 +27,10 @@ It addresses a practical problem for CNG drivers: station information, queue len
 | Backend | Python, Django 5, Django REST Framework |
 | Authentication | Django sessions, Simple JWT access and refresh tokens |
 | Database | SQLite with Django ORM and migrations |
-| Frontend | Django templates, HTML, CSS, vanilla JavaScript |
-| Map and routing | Leaflet, Leaflet Routing Machine, Leaflet.heat, OpenStreetMap tiles, OSRM routing |
-| External data services | OpenStreetMap Overpass API, Nominatim, Google Directions API, Google Places Text Search and Autocomplete APIs |
-| Supporting packages | `django-cors-headers`, `django-filter`, `python-dotenv`, `requests` |
+| Frontend | Django templates, HTML, CSS, JavaScript |
+| Map and routing | Leaflet, OpenStreetMap tiles, OSRM routing |
+| External data services | OpenStreetMap Overpass API, Nominatim, Google Directions API|
+
 
 ## How It Works
 
@@ -156,7 +156,7 @@ External services used by the implementation are:
 - **OpenStreetMap:** Leaflet map tiles and the Nominatim fallback used when a local station search has no match.
 - **OSRM via OpenStreetMap directions:** Route lines and the external directions link shown by the map UI.
 - **Overpass API:** The `fetch_stations` management command imports CNG-tagged fuel stations into SQLite.
-- **Google Directions and Places APIs:** Django proxy views exist for driving directions, Places Text Search, and Places Autocomplete. They read `GOOGLE_MAPS_API_KEY` from the environment rather than embedding it in source code.
+
 
 ## Screenshots
 
