@@ -1,0 +1,16 @@
+{% extends "control_panel/base_admin.html" %}
+
+{% block content %}
+<h2>Delete User: {{ user_obj.username }}</h2>
+
+<div style="background: var(--color-bg-secondary); padding: 20px; border-radius: 8px; border-left: 4px solid #dc3545;">
+    <p>Are you sure you want to delete the user "<strong>{{ user_obj.username }}</strong>"?</p>
+    <p style="color: #dc3545; font-size: 0.9em;">This action cannot be undone and will delete all related records including their bookings and queue updates.</p>
+    
+    <form method="POST" style="margin-top: 20px;">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary" style="background-color: #dc3545; border-color: #dc3545;">Yes, Delete</button>
+        <a href="{% url 'admin_user_list' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

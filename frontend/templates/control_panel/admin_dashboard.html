@@ -1,0 +1,29 @@
+{% extends "control_panel/base_admin.html" %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Admin Control Dashboard</h1>
+</div>
+
+<div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
+    <div class="stat-card" style="background: var(--color-bg-secondary); padding: 20px; border-radius: 8px; text-align: center;">
+        <h3 style="margin: 0; color: var(--color-text-muted);">Total Stations</h3>
+        <p style="font-size: 2rem; margin: 10px 0; color: var(--color-accent);">{{ total_stations }}</p>
+    </div>
+    <div class="stat-card" style="background: var(--color-bg-secondary); padding: 20px; border-radius: 8px; text-align: center;">
+        <h3 style="margin: 0; color: var(--color-text-muted);">Total Bookings</h3>
+        <p style="font-size: 2rem; margin: 10px 0; color: var(--color-accent);">{{ total_bookings }}</p>
+    </div>
+    <div class="stat-card" style="background: var(--color-bg-secondary); padding: 20px; border-radius: 8px; text-align: center;">
+        <h3 style="margin: 0; color: var(--color-text-muted);">Active Users</h3>
+        <p style="font-size: 2rem; margin: 10px 0; color: var(--color-accent);">{{ active_users }}</p>
+    </div>
+</div>
+
+<div class="dashboard-actions btn-group" style="margin-bottom: 30px;">
+    <a href="{% url 'admin_station_add' %}" class="btn btn-primary"> Add Station</a>
+    <a href="{% url 'admin_station_list' %}" class="btn btn-secondary"> Manage Stations</a>
+    <a href="{% url 'admin_booking_list' %}" class="btn btn-secondary">View Bookings</a>
+    <a href="{% url 'admin_user_list' %}" class="btn btn-secondary">Manage Users</a>
+</div>
+{% endblock %}

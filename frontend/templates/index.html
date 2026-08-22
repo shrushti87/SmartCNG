@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="SmartCNG - Find nearest CNG stations, check real-time queue status, book slots, and navigate with live directions. Your smart companion for CNG refueling.">
+    <title>SmartCNG – Find, Book & Navigate CNG Stations</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛽</text></svg>">
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/theme-light.css' %}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav class="navbar" id="main-navbar">
+        <a href="/" class="nav-brand">
+            <!-- <div class="brand-icon">⛽</div> -->
+            Smart<span style="color: var(--color-accent);">CNG</span>
+        </a>
+        <ul class="nav-links" id="dynamic-nav-links">
+            <li><a href="/" class="active">Home</a></li>
+            <li class="user-only-link"><a href="/dashboard/">Dashboard</a></li>
+            <li class="user-only-link"><a href="/bookings/">My Bookings</a></li>
+        </ul>
+        <div class="nav-auth">
+            <!-- Populated by JS -->
+        </div>
+        <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('active')">☰</button>
+    </nav>
+
+    <main class="main-content">
+        <!-- Hero Section -->
+        <section class="hero">
+            <h1>Find Your Nearest CNG Station</h1>
+            <p>Real-time availability, live queue updates, and instant slot booking — all in one place.</p>
+            <div class="hero-search" style="position: relative;">
+                <input type="text" id="search-input" placeholder="Search stations by name or area..." autocomplete="off"
+                    oninput="handleSearch(this.value)">
+                <button class="btn btn-primary"
+                    onclick="SmartMap.searchStations(document.getElementById('search-input').value)">
+                    🔍 Search
+                </button>
+                <div class="search-suggestions" id="search-suggestions"></div>
+            </div>
+        </section>
+
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-total">0</div>
+                <div class="stat-label">Total Stations</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-available">0</div>
+                <div class="stat-label">Available</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-low">0</div>
+                <div class="stat-label">Low Gas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-nogas">0</div>
+                <div class="stat-label">No Gas</div>
+            </div>
+        </div>
+
+        <!-- Best Station Recommendation -->
+        <div class="recommendation-banner" id="recommendation-banner" style="display: none;">
+            <div class="recommendation-icon">🏆</div>
+            <div class="recommendation-content">
+                <h3>Best Station Now: <span class="rec-name"></span></h3>
+                <p class="rec-info"></p>
+            </div>
+            <button class="btn btn-primary btn-sm" style="margin-left: auto;">Navigate →</button>
+        </div>
+
+        <!-- Map + Station List -->
+        <div class="map-section">
+            <div style="position: relative;">
+                <div id="map"></div>
+                <!-- Map Controls -->
+                <div style="position: absolute; top: 10px; right: 10px; z-index: 10;" class="btn-group">
+                    <button class="btn btn-secondary btn-sm" onclick="SmartMap.toggleHeatmap()" title="Toggle Heatmap">
+                        🔥 Heatmap
+                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="SmartMap.clearDirections()" title="Clear Route">
+                        ✕ Clear
+                    </button>
+                </div>
+
+                <!-- Directions Panel -->
+                <div class="directions-panel" id="directions-panel">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="font-size: 0.95rem;">📍 Directions to <span class="directions-station-name"></span>
+                        </h4>
+                        <button class="btn btn-sm btn-secondary" onclick="SmartMap.clearDirections()">✕ Close</button>
+                    </div>
+                    <div class="directions-info">
+                        <div class="info-item">
+                            <div class="info-value dir-distance">--</div>
+                            <div class="info-label">Distance</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-value dir-duration">--</div>
+                            <div class="info-label">ETA</div>
+                        </div>
+                    </div>
+                    <a href="#" id="gmaps-link" target="_blank" class="btn btn-primary btn-sm"
+                        style="width: 100%; margin-top: 8px;">
+                        🗺 Open External Map
+                    </a>
+                </div>
+            </div>
+
+            <!-- Stations Sidebar -->
+            <div>
+                <div class="stations-sidebar-header">
+                    <h3 class="section-title" style="margin-bottom: 0;">Nearby Stations</h3>
+                    <select class="sort-select" id="sort-select" onchange="SmartMap.loadStations(this.value)">
+                        <option value="distance">Sort by Distance</option>
+                        <option value="queue">Sort by Queue</option>
+                        <option value="smart">Smart Sort</option>
+                    </select>
+                </div>
+                <div class="stations-sidebar" id="stations-list">
+                    <div class="loading-overlay">
+                        <div class="loading-spinner"></div>
+                        <span style="margin-left: 12px;">Finding stations near you...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Booking Modal -->
+    <div class="modal-overlay" id="booking-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>📅 Book a Slot at <span class="booking-station-name"></span></h3>
+                <button class="modal-close" onclick="Utils.closeModal('booking-modal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Select Date</label>
+                    <input type="date" class="form-input" id="booking-date"
+                        onchange="BookingUI.onDateChange(this.value)">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Select Time Slot</label>
+                    <div class="slot-grid" id="slots-grid">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Vehicle Number</label>
+                    <input type="text" class="form-input" id="booking-vehicle" placeholder="e.g. MH-02-AB-1234"
+                        required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes (optional)</label>
+                    <textarea class="form-textarea" id="booking-notes" placeholder="Any special requirements..."
+                        rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer btn-group" style="justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="Utils.closeModal('booking-modal')">Cancel</button>
+                <button class="btn btn-primary" id="confirm-booking-btn" onclick="BookingUI.confirmBooking()">
+                    ✓ Confirm Booking
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Booking Confirmation Modal -->
+    <div class="modal-overlay" id="confirmation-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>✅ Booking Confirmed!</h3>
+                <button class="modal-close" onclick="Utils.closeModal('confirmation-modal')">×</button>
+            </div>
+            <div class="modal-body" style="text-align: center;">
+                <div style="font-size: 3rem; margin-bottom: 16px;">🎉</div>
+                <div style="margin-bottom: 24px;">
+                    <div
+                        style="font-family: var(--font-mono); font-size: 1.5rem; color: var(--color-accent); letter-spacing: 2px; margin-bottom: 8px;">
+                        <span class="conf-token"></span>
+                    </div>
+                    <p style="font-size: 0.8rem; color: var(--color-text-muted);">Your Booking Token</p>
+                </div>
+                <div
+                    style="text-align: left; background: var(--color-bg-tertiary); border-radius: var(--radius-md); padding: 16px;">
+                    <p><strong>Station:</strong> <span class="conf-station"></span></p>
+                    <p><strong>Date:</strong> <span class="conf-date"></span></p>
+                    <p><strong>Time:</strong> <span class="conf-slot"></span></p>
+                    <p><strong>Status:</strong> <span class="conf-status"
+                            style="color: var(--color-available); text-transform: capitalize;"></span></p>
+                </div>
+            </div>
+            <div class="modal-footer btn-group" style="justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="Utils.closeModal('confirmation-modal')">Close</button>
+                <a href="/bookings/" class="btn btn-primary">View All Bookings</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Queue Update Modal -->
+    <div class="modal-overlay" id="queue-update-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>📊 Update Crowd Status – <span class="queue-station-name"></span></h3>
+                <button class="modal-close" onclick="Utils.closeModal('queue-update-modal')">×</button>
+            </div>
+            <div class="modal-body">
+                <form
+                    onsubmit="event.preventDefault(); QueueUI.submitUpdate(this.closest('.modal-overlay').dataset.stationId);">
+                    <div class="form-group">
+                        <label class="form-label">Vehicles in Queue</label>
+                        <input type="number" class="form-input" id="queue-length" min="0" max="200"
+                            placeholder="Number of vehicles waiting" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Gas Availability</label>
+                        <select class="form-select" id="queue-availability" required>
+                            <option value="available">✅ Gas Available</option>
+                            <option value="low">⚠️ Low Gas</option>
+                            <option value="no_gas">❌ No Gas</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Comment (optional)</label>
+                        <textarea class="form-textarea" id="queue-comment" placeholder="Any additional info..."
+                            rows="2"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">📤 Submit Update</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container (auto-created by JS) -->
+
+    <!-- Scripts -->
+    <script src="{% static 'js/api.js' %}"></script>
+    <script src="{% static 'js/utils.js' %}"></script>
+    <script src="{% static 'js/map.js' %}"></script>
+    <script src="{% static 'js/booking.js' %}"></script>
+    <script src="{% static 'js/queue.js' %}"></script>
+
+    <script>
+        // Search with debounce
+        const handleSearch = Utils.debounce(async (query) => {
+            const suggestions = document.getElementById('search-suggestions');
+            if (!query || query.length < 2) {
+                suggestions.classList.remove('active');
+                return;
+            }
+
+            try {
+                const data = await API.getStations(query);
+                const stations = data.results || data || [];
+
+                if (stations.length > 0) {
+                    suggestions.innerHTML = stations.slice(0, 5).map(s => `
+                        <div class="search-suggestion-item" onclick="selectStation(${s.id}, '${s.name.replace(/'/g, "\\'")}', ${s.latitude}, ${s.longitude})">
+                            <span>${Utils.getStatusEmoji(s.latest_availability || s.status)}</span>
+                            <div>
+                                <strong>${s.name}</strong>
+                                <br><small style="color: var(--color-text-muted);">${s.address}</small>
+                            </div>
+                        </div>
+                    `).join('');
+                    suggestions.classList.add('active');
+                } else {
+                    suggestions.classList.remove('active');
+                }
+            } catch (e) {
+                suggestions.classList.remove('active');
+            }
+        }, 300);
+
+        function selectStation(id, name, lat, lng) {
+            document.getElementById('search-suggestions').classList.remove('active');
+            document.getElementById('search-input').value = name;
+            if (SmartMap.map) {
+                SmartMap.map.panTo({ lat, lng });
+                SmartMap.map.setZoom(15);
+            }
+        }
+
+        // Close suggestions on outside click
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.hero-search')) {
+                document.getElementById('search-suggestions')?.classList.remove('active');
+            }
+        });
+
+        // Close modals on Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') Utils.closeAllModals();
+        });
+
+        // Close modals on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    overlay.classList.remove('active');
+                    document.body.style.overflow = '';
+                }
+            });
+        });
+    </script>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+    <script src="https://leaflet.github.io/Leaflet.heat/dist/leaflet-heat.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            SmartMap.init();
+
+            // Adjust nav for admins
+            const currentUser = API.getUser();
+            if (currentUser && (currentUser.is_staff || currentUser.is_superuser)) {
+                document.querySelectorAll('.user-only-link').forEach(el => el.style.display = 'none');
+
+                const adminLink = document.createElement('li');
+                adminLink.innerHTML = '<a href="/admin-dashboard/" style="color: var(--color-accent); font-weight: bold;">Admin Panel</a>';
+                document.getElementById('dynamic-nav-links').appendChild(adminLink);
+
+                // Set auth text
+                const navAuth = document.querySelector('.nav-auth');
+                if (navAuth) {
+                    navAuth.innerHTML = `
+                        <span style="margin-right: 15px; font-weight: 500;">Admin: ${currentUser.username}</span>
+                        <button class="btn btn-secondary btn-sm" onclick="API.logout()">Logout</button>
+                    `;
+                }
+            } else if (currentUser) {
+                const navAuth = document.querySelector('.nav-auth');
+                if (navAuth) {
+                    navAuth.innerHTML = `
+                        <span style="margin-right: 15px; font-weight: 500;">Hello, ${currentUser.first_name || currentUser.username}</span>
+                        <button class="btn btn-secondary btn-sm" onclick="API.logout()">Logout</button>
+                    `;
+                }
+            } else {
+                const navAuth = document.querySelector('.nav-auth');
+                if (navAuth) {
+                    navAuth.classList.add('btn-group');
+                    navAuth.innerHTML = `
+                        <a href="/login/" class="btn btn-secondary btn-sm">Login</a>
+                        <a href="/register/" class="btn btn-primary btn-sm">Sign Up</a>
+                    `;
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard – SmartCNG</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/theme-light.css' %}">
+    <style>
+        .admin-nav {
+            background-color: var(--color-bg-primary);
+            padding: 15px 20px;
+            display: flex;
+            gap: 20px;
+            border-bottom: 1px solid var(--color-border);
+            margin-bottom: 30px;
+        }
+
+        .admin-nav a {
+            color: var(--color-text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color var(--transition-fast);
+        }
+
+        .admin-nav a:hover,
+        .admin-nav a.active {
+            color: var(--color-accent);
+        }
+
+        .admin-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            background: white;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            border: 1px solid var(--color-border);
+        }
+
+        .admin-table th,
+        .admin-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--color-border);
+            color: var(--color-text-primary);
+        }
+
+        .admin-table th {
+            background-color: var(--color-bg-secondary);
+            color: var(--color-text-secondary);
+        }
+
+        .admin-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .admin-table td.btn-group {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 8px;
+            white-space: nowrap;
+            width: 1%; /* Shrink to fit buttons */
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar">
+        <a href="/" class="nav-brand">
+            <!-- <div class="brand-icon">⛽</div> -->
+            Smart<span style="color: var(--color-accent);">CNG</span> Admin
+        </a>
+        <div class="nav-auth btn-group">
+            <a href="/" class="btn btn-secondary btn-sm">Back to Site</a>
+        </div>
+    </nav>
+
+    <div class="admin-nav">
+        <a href="{% url 'admin_dashboard' %}">Dashboard</a>
+        <a href="{% url 'admin_station_list' %}">Stations</a>
+        <a href="{% url 'admin_booking_list' %}">Bookings</a>
+        <a href="{% url 'admin_user_list' %}">Users</a>
+    </div>
+
+    <div class="admin-container">
+        {% if messages %}
+        {% for message in messages %}
+        <div
+            style="padding: 15px; border-radius: 4px; margin-bottom: 20px; background-color: var(--color-bg-secondary); border-left: 4px solid var(--color-accent);">
+            {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </div>
+</body>
+
+</html>

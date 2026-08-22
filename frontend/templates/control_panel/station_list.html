@@ -1,0 +1,53 @@
+{% extends "control_panel/base_admin.html" %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;" class="btn-group">
+    <div class="btn-group" style="align-items: center;">
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary btn-sm" style="margin-right: 15px;">← Back to Dashboard</a>
+        <h2 style="margin: 0;">Manage Stations</h2>
+    </div>
+    <a href="{% url 'admin_station_add' %}" class="btn btn-primary">➕ Add New Station</a>
+</div>
+
+<table class="admin-table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Address</th>
+            <th>Price / kg</th>
+            <th>Queue Length</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for station in stations %}
+        <tr>
+            <td>{{ station.name }}</td>
+            <td>{{ station.address|truncatechars:40 }}</td>
+            <td>₹{{ station.price_per_kg }}</td>
+            <td>
+                {% with latest=station.latest_queue %}
+                    {% if latest %}
+                        <strong>{{ latest.queue_length }}</strong> vehicles
+                        <br><small style="color: #666;">({{ latest.timestamp|timesince }} ago)</small>
+                    {% else %}
+                        <span style="color: #999;">No data</span>
+                    {% endif %}
+                {% endwith %}
+            </td>
+            <td>{{ station.get_status_display }}</td>
+            <td class="btn-group">
+                <a href="{% url 'admin_station_edit' station.id %}" class="btn btn-secondary btn-sm">Edit</a>
+                <a href="{% url 'admin_station_bookings' station.id %}" class="btn btn-secondary btn-sm">Bookings</a>
+                <a href="{% url 'admin_station_delete' station.id %}" class="btn btn-danger btn-sm">Delete</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6" style="text-align: center;">No stations found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

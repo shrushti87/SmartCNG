@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="View your CNG station slot bookings on SmartCNG.">
+    <title>My Bookings – SmartCNG</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/theme-light.css' %}">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <a href="/" class="nav-brand">
+            <!-- <div class="brand-icon"></div> -->
+            Smart<span style="color: var(--color-accent);">CNG</span>
+        </a>
+        <ul class="nav-links">
+            <li><a href="/">Home</a></li>
+            <li><a href="/dashboard/">Dashboard</a></li>
+            <li><a href="/bookings/" class="active">My Bookings</a></li>
+        </ul>
+        <div class="nav-auth btn-group"></div>
+        <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('active')">☰</button>
+    </nav>
+
+    <main class="main-content">
+        <div class="container" style="padding-top: 32px;">
+            <h1 style="font-size: 1.8rem; margin-bottom: 8px;">My Bookings</h1>
+            <p style="color: var(--color-text-secondary); margin-bottom: 32px;">View and manage all your CNG station slot bookings.</p>
+
+            <div id="bookings-list">
+                <div class="loading-overlay">
+                    <div class="loading-spinner"></div>
+                    <span style="margin-left: 12px;">Loading bookings...</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="{% static 'js/api.js' %}"></script>
+    <script src="{% static 'js/utils.js' %}"></script>
+    <script src="{% static 'js/booking.js' %}"></script>
+    <script>
+        if (!API.isLoggedIn()) {
+            window.location.href = '/login/';
+        }
+        const currentUser = API.getUser();
+        if (currentUser && (currentUser.is_staff || currentUser.is_superuser)) {
+            window.location.href = '/admin-dashboard/';
+        }
+
+        BookingUI.loadUserBookings();
+    </script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+{% extends "control_panel/base_admin.html" %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;" class="btn-group">
+    <div class="btn-group" style="align-items: center;">
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary btn-sm" style="margin-right: 15px;">← Back to Dashboard</a>
+        <h2 style="margin: 0;">Manage Users</h2>
+    </div>
+</div>
+
+<table class="admin-table">
+    <thead>
+        <tr>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Total Bookings</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for user in users %}
+        <tr>
+            <td>{{ user.username }} {% if request.user == user %}(You){% endif %}</td>
+            <td>{{ user.email }}</td>
+            <td>{% if user.is_superuser %}Admin{% else %}User{% endif %}</td>
+            <td>{{ user.booking_count }}</td>
+            <td>
+                <span class="status-badge" style="position:static; padding: 4px 8px; font-size: 0.8em; border-radius: 4px;
+                    {% if user.is_active %}background: rgba(0, 255, 0, 0.1); color: #00ff00;
+                    {% else %}background: rgba(255, 0, 0, 0.1); color: #ff0000;{% endif %}">
+                    {% if user.is_active %}Active{% else %}Inactive{% endif %}
+                </span>
+            </td>
+            <td class="btn-group">
+                {% if request.user != user %}
+                <a href="{% url 'admin_user_history' user.id %}" class="btn btn-secondary btn-sm">History</a>
+                <form method="POST" action="{% url 'admin_user_toggle' user.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-secondary btn-sm">
+                        {% if user.is_active %}Deactivate{% else %}Activate{% endif %}
+                    </button>
+                </form>
+                <a href="{% url 'admin_user_delete' user.id %}" class="btn btn-danger btn-sm">Delete</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6" style="text-align: center;">No users found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

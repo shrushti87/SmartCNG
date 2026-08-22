@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="View CNG station details, queue updates, available slots, and directions.">
+    <title>Station Details – SmartCNG</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/theme-light.css' %}">
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <a href="/" class="nav-brand">
+            <!-- <div class="brand-icon">⛽</div> -->
+            Smart<span style="color: var(--color-accent);">CNG</span>
+        </a>
+        <ul class="nav-links">
+            <li><a href="/">Home</a></li>
+            <li><a href="/dashboard/">Dashboard</a></li>
+            <li><a href="/bookings/">My Bookings</a></li>
+        </ul>
+        <div class="nav-auth"></div>
+        <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('active')">☰</button>
+    </nav>
+
+    <main class="main-content">
+        <div class="container" style="padding-top: 32px;">
+            <!-- Station Header -->
+            <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 32px;">
+                <div>
+                    <h1 id="station-name" style="font-size: 1.8rem; margin-bottom: 4px;">Loading...</h1>
+                    <p id="station-address" style="color: var(--color-text-secondary);"></p>
+                    <div style="display: flex; gap: 12px; margin-top: 12px;">
+                        <span class="status-badge" id="station-status" style="position: static;"></span>
+                        <span id="station-queue" class="chip" style="background: var(--color-bg-tertiary);">🚗 Loading queue...</span>
+                        <span id="station-price" class="chip"></span>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" id="btn-directions" onclick="getDirectionsToStation()">
+                        Get Directions
+                    </button>
+                    {% if not user.is_staff and not user.is_superuser %}
+                    <button class="btn btn-secondary" id="btn-book" onclick="openBooking()">
+                        Book Slot
+                    </button>
+                    {% endif %}
+                    <button class="favorite-btn" id="btn-favorite" onclick="toggleFavorite()">♡</button>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" onclick="switchDetailTab('queue')">Queue Updates</button>
+                <button class="tab" onclick="switchDetailTab('slots')">Available Slots</button>
+                <button class="tab" onclick="switchDetailTab('info')">Info</button>
+            </div>
+
+            <!-- Queue Tab -->
+            <div class="tab-panel active" id="tab-queue">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3>Recent Crowd Updates</h3>
+                    <button class="btn btn-primary btn-sm" id="btn-report" onclick="openQueueUpdate()">
+                        Report Status
+                    </button>
+                </div>
+                <div class="queue-updates-list" id="queue-updates"></div>
+            </div>
+
+            <!-- Slots Tab -->
+            <div class="tab-panel" id="tab-slots">
+                <div class="form-group" style="max-width: 300px;">
+                    <label class="form-label">Select Date</label>
+                    <input type="date" class="form-input" id="slots-date" onchange="loadStationSlots()">
+                </div>
+                <div class="slot-grid" id="station-slots-grid">
+                    <div class="loading-overlay">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Info Tab -->
+            <div class="tab-panel" id="tab-info">
+                <div class="dashboard-card" style="max-width: 600px;">
+                    <h3>Station Information</h3>
+                    <div style="display: grid; gap: 12px; margin-top: 16px;">
+                        <div><strong>Address:</strong> <span id="info-address"></span></div>
+                        <div><strong>Phone:</strong> <span id="info-phone">N/A</span></div>
+                        <div><strong>Price per kg:</strong> <span id="info-price">N/A</span></div>
+                        <div><strong>Status:</strong> <span id="info-status">N/A</span></div>
+                        <div><strong>Queue Status:</strong> <span id="info-queue">N/A</span></div>
+                        <div><strong>Coordinates:</strong> <span id="info-coords"></span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Booking Modal (reused) -->
+    <div class="modal-overlay" id="booking-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Book a Slot at <span class="booking-station-name"></span></h3>
+                <button class="modal-close" onclick="Utils.closeModal('booking-modal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Select Date</label>
+                    <input type="date" class="form-input" id="booking-date"
+                        onchange="BookingUI.onDateChange(this.value)">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Select Time Slot</label>
+                    <div class="slot-grid" id="slots-grid"></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Vehicle Number</label>
+                    <input type="text" class="form-input" id="booking-vehicle" placeholder="e.g. MH-02-AB-1234"
+                        required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <textarea class="form-textarea" id="booking-notes" rows="2"
+                        placeholder="Any special requirements..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer btn-group" style="justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="Utils.closeModal('booking-modal')">Cancel</button>
+                <button class="btn btn-primary" id="confirm-booking-btn" onclick="BookingUI.confirmBooking()">✓ Confirm
+                    Booking</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div class="modal-overlay" id="confirmation-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>✅ Booking Confirmed!</h3>
+                <button class="modal-close" onclick="Utils.closeModal('confirmation-modal')">×</button>
+            </div>
+            <div class="modal-body" style="text-align: center;">
+                <div style="font-size: 3rem; margin-bottom: 16px;">🎉</div>
+                <div
+                    style="font-family: var(--font-mono); font-size: 1.5rem; color: var(--color-accent); margin-bottom: 8px;">
+                    <span class="conf-token"></span>
+                </div>
+                <p style="font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 20px;">Your Booking Token
+                </p>
+                <div
+                    style="text-align: left; background: var(--color-bg-tertiary); border-radius: 10px; padding: 16px;">
+                    <p><strong>Station:</strong> <span class="conf-station"></span></p>
+                    <p><strong>Date:</strong> <span class="conf-date"></span></p>
+                    <p><strong>Time:</strong> <span class="conf-slot"></span></p>
+                    <p><strong>Status:</strong> <span class="conf-status"
+                            style="color: var(--color-available); text-transform: capitalize;"></span></p>
+                </div>
+            </div>
+            <div class="modal-footer btn-group" style="justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="Utils.closeModal('confirmation-modal')">Close</button>
+                <a href="/bookings/" class="btn btn-primary">View All Bookings</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Queue Update Modal -->
+    <div class="modal-overlay" id="queue-update-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Update Status – <span class="queue-station-name"></span></h3>
+                <button class="modal-close" onclick="Utils.closeModal('queue-update-modal')">×</button>
+            </div>
+            <div class="modal-body">
+                <form onsubmit="event.preventDefault(); QueueUI.submitUpdate(stationId);">
+                    <div class="form-group">
+                        <label class="form-label">Vehicles in Queue</label>
+                        <input type="number" class="form-input" id="queue-length" min="0" max="200" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Gas Availability</label>
+                        <select class="form-select" id="queue-availability" required>
+                            <option value="available">✅ Available</option>
+                            <option value="low">⚠️ Low Gas</option>
+                            <option value="no_gas">❌ No Gas</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Comment (optional)</label>
+                        <textarea class="form-textarea" id="queue-comment" rows="2"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;"> Submit Update</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="{% static 'js/api.js' %}"></script>
+    <script src="{% static 'js/utils.js' %}"></script>
+    <script src="{% static 'js/booking.js' %}"></script>
+    <script src="{% static 'js/queue.js' %}"></script>
+    <script>
+        // Extract station ID from URL
+        const urlParts = window.location.pathname.split('/');
+        const stationId = parseInt(urlParts[urlParts.indexOf('station') + 1]);
+        let stationData = null;
+
+        async function loadStationDetail() {
+            try {
+                stationData = await API.getStation(stationId);
+                const s = stationData;
+                const status = s.latest_availability || s.status || 'available';
+
+                document.title = `${s.name} – SmartCNG`;
+                document.getElementById('station-name').textContent = s.name;
+                document.getElementById('station-address').textContent = s.address;
+
+                const statusBadge = document.getElementById('station-status');
+                statusBadge.className = `status-badge ${status}`;
+                statusBadge.textContent = Utils.getStatusLabel(status);
+                statusBadge.style.position = 'static';
+
+                const queueLen = s.latest_queue_length;
+                const queueEl = document.getElementById('station-queue');
+                if (queueLen !== null && queueLen !== undefined) {
+                    queueEl.textContent = `🚗 ${queueLen} vehicles in queue`;
+                } else {
+                    queueEl.textContent = '🚗 No recent queue data';
+                }
+
+                document.getElementById('station-price').textContent = s.price_per_kg ? `₹${s.price_per_kg}/kg` : 'Price N/A';
+
+                // Info tab
+                document.getElementById('info-address').textContent = s.address;
+                document.getElementById('info-phone').textContent = s.phone || 'N/A';
+                document.getElementById('info-price').textContent = s.price_per_kg ? `₹${s.price_per_kg}` : 'N/A';
+                document.getElementById('info-status').textContent = Utils.getStatusLabel(status);
+                document.getElementById('info-queue').textContent = queueLen !== null ? `${queueLen} vehicles` : 'N/A';
+                document.getElementById('info-coords').textContent = `${s.latitude}, ${s.longitude}`;
+
+                // Favorite button
+                if (s.is_favorite) {
+                    document.getElementById('btn-favorite').textContent = '♥';
+                    document.getElementById('btn-favorite').classList.add('active');
+                }
+
+                // Load queue updates
+                document.getElementById('queue-updates').dataset.stationId = stationId;
+                QueueUI.loadQueueUpdates(stationId);
+
+                // Set default date for slots
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('slots-date').value = today;
+                document.getElementById('slots-date').min = today;
+
+            } catch (error) {
+                document.getElementById('station-name').textContent = 'Station Not Found';
+                console.error('Failed to load station:', error);
+            }
+        }
+
+        function openBooking() {
+            if (stationData) {
+                BookingUI.openBookingModal(stationData.id, stationData.name);
+            }
+        }
+
+        function openQueueUpdate() {
+            if (stationData) {
+                QueueUI.openUpdateModal(stationData.id, stationData.name);
+            }
+        }
+
+        async function getDirectionsToStation() {
+            if (!stationData) return;
+            try {
+                const pos = await Utils.getCurrentPosition();
+                const destLat = stationData.latitude;
+                const destLng = stationData.longitude;
+                // Open in External Map
+                window.open(
+                    `https://www.openstreetmap.org/directions?engine=osrm_car&route=${pos.lat},${pos.lng};${destLat},${destLng}`,
+                    '_blank'
+                );
+            } catch (e) {
+                Utils.showToast('Location access required for directions', 'error');
+            }
+        }
+
+        async function toggleFavorite() {
+            if (!API.isLoggedIn()) {
+                Utils.showToast('Please login to save favorites', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('btn-favorite');
+            try {
+                if (btn.classList.contains('active')) {
+                    await API.removeFavorite(stationId);
+                    btn.textContent = '♡';
+                    btn.classList.remove('active');
+                    Utils.showToast('Removed from favorites', 'success');
+                } else {
+                    await API.addFavorite(stationId);
+                    btn.textContent = '♥';
+                    btn.classList.add('active');
+                    Utils.showToast('Added to favorites!', 'success');
+                }
+            } catch (e) {
+                Utils.showToast('Failed to update favorites', 'error');
+            }
+        }
+
+        async function loadStationSlots() {
+            const date = document.getElementById('slots-date').value;
+            const grid = document.getElementById('station-slots-grid');
+            grid.innerHTML = '<div class="loading-overlay"><div class="loading-spinner"></div></div>';
+
+            try {
+                const data = await API.getSlots(stationId, date);
+                const slots = data.results || data || [];
+
+                if (slots.length === 0) {
+                    grid.innerHTML = '<div class="empty-state" style="padding: 20px;"><p>No slots available.</p></div>';
+                    return;
+                }
+
+                grid.innerHTML = slots.map(slot => `
+                    <div class="slot-item ${slot.available_capacity <= 0 ? 'full' : ''}"
+                         onclick="${(slot.available_capacity > 0 && !({{ user.is_staff|yesno:"true,false" }} || {{ user.is_superuser|yesno:"true,false" }})) ? `openBooking()` : ''}">
+                        <div class="slot-time">${BookingUI.formatSlotTime(slot.start_time)} - ${BookingUI.formatSlotTime(slot.end_time)}</div>
+                        <div class="slot-capacity">${slot.available_capacity <= 0 ? 'Full' : `${slot.available_capacity} available`}</div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                grid.innerHTML = '<p style="text-align:center;color:var(--color-text-muted);">Failed to load slots.</p>';
+            }
+        }
+
+        function switchDetailTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+
+            if (tabName === 'slots') loadStationSlots();
+        }
+
+        // Init
+        loadStationDetail();
+
+        // Close modals
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') Utils.closeAllModals();
+        });
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    overlay.classList.remove('active');
+                    document.body.style.overflow = '';
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

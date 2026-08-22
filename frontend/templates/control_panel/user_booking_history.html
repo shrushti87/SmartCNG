@@ -1,0 +1,45 @@
+{% extends "control_panel/base_admin.html" %}
+
+{% block content %}
+<h2>User Booking History: {{ user_obj.username }}</h2>
+<div style="margin-bottom: 20px;">
+    <a href="{% url 'admin_user_list' %}" class="btn btn-secondary">← Back to Users</a>
+</div>
+
+<table class="admin-table">
+    <thead>
+        <tr>
+            <th>Token</th>
+            <th>Station</th>
+            <th>Date</th>
+            <th>Slot</th>
+            <th>Status</th>
+            <th>Booked At</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for booking in bookings %}
+        <tr>
+            <td><strong>{{ booking.token }}</strong></td>
+            <td>{{ booking.station.name }}</td>
+            <td>{{ booking.date|date:"M d, Y" }}</td>
+            <td>{{ booking.slot.start_time|time:"H:i" }} - {{ booking.slot.end_time|time:"H:i" }}</td>
+            <td>
+                <span class="status-badge" style="position:static; padding: 4px 8px; font-size: 0.8em; border-radius: 4px;
+                    {% if booking.status == 'confirmed' %}background: rgba(0, 255, 0, 0.1); color: #00ff00;
+                    {% elif booking.status == 'cancelled' %}background: rgba(255, 0, 0, 0.1); color: #ff0000;
+                    {% elif booking.status == 'pending' %}background: rgba(255, 165, 0, 0.1); color: orange;
+                    {% else %}background: rgba(255,255,255,0.1);{% endif %}">
+                    {{ booking.get_status_display }}
+                </span>
+            </td>
+            <td>{{ booking.created_at|date:"M d, Y H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6" style="text-align: center;">No bookings found for this user.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

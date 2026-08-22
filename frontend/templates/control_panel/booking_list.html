@@ -1,0 +1,62 @@
+{% extends "control_panel/base_admin.html" %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;" class="btn-group">
+    <div class="btn-group" style="align-items: center;">
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary btn-sm" style="margin-right: 15px;">← Back to Dashboard</a>
+        <h2 style="margin: 0;">{{ title }}</h2>
+    </div>
+    {% if request.resolver_match.kwargs.station_id %}
+    <a href="{% url 'admin_station_list' %}" class="btn btn-secondary">Back to Stations</a>
+    {% endif %}
+</div>
+
+<table class="admin-table">
+    <thead>
+        <tr>
+            <th>Token</th>
+            <th>User</th>
+            <th>Station</th>
+            <th>Date</th>
+            <th>Slot</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for booking in bookings %}
+        <tr>
+            <td><strong>{{ booking.token }}</strong></td>
+            <td>{{ booking.user.username }}</td>
+            <td>{{ booking.station.name }}</td>
+            <td>{{ booking.date|date:"M d, Y" }}</td>
+            <td>{{ booking.slot.start_time|time:"H:i" }} - {{ booking.slot.end_time|time:"H:i" }}</td>
+            <td>
+                <span class="status-badge" style="position:static; padding: 4px 8px; font-size: 0.8em; border-radius: 4px;
+                    {% if booking.status == 'confirmed' %}background: rgba(0, 255, 0, 0.1); color: #00ff00;
+                    {% elif booking.status == 'cancelled' %}background: rgba(255, 0, 0, 0.1); color: #ff0000;
+                    {% elif booking.status == 'pending' %}background: rgba(255, 165, 0, 0.1); color: orange;
+                    {% else %}background: rgba(255,255,255,0.1);{% endif %}">
+                    {{ booking.get_status_display }}
+                </span>
+            </td>
+            <td>
+                <form method="POST" style="display: inline-flex; gap: 5px; align-items: center;">
+                    {% csrf_token %}
+                    <input type="hidden" name="booking_id" value="{{ booking.id }}">
+                    <select name="status" class="form-select" style="padding: 4px; padding-right: 20px; font-size: 0.8em;" onchange="this.form.submit()">
+                        {% for choice_val, choice_label in status_choices %}
+                            <option value="{{ choice_val }}" {% if booking.status == choice_val %}selected{% endif %}>{{ choice_label }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="7" style="text-align: center;">No bookings found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
