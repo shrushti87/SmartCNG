@@ -158,14 +158,6 @@ External services used by the implementation are:
 - **Overpass API:** The `fetch_stations` management command imports CNG-tagged fuel stations into SQLite.
 
 
-## Screenshots
-
-No screenshot files are currently included in the repository. Add captured images to a tracked `screenshots/` directory and reference them here, for example:
-
-```markdown
-![Home map view](screenshots/home.png)
-```
-
 ## Key Learning Outcomes
 
 - Designing a Django project with multiple apps, a custom user model, ORM relationships, migrations, and admin configuration.
